@@ -1,12 +1,10 @@
 #!/usr/bin/env python
-import os
 import sys
 import time
 import numpy as np
 np.finfo(np.dtype("float32"))
 np.finfo(np.dtype("float64"))
 import cv2
-# from multiprocessing import Process
 from display import Display3D
 from frame import Frame, match_frames
 from pointmap import Map, Point
@@ -121,9 +119,6 @@ class SLAM(object):
         # optimize the map
         # if frame.id >= 4:
         if frame.id >= 2 and frame.id % self.frame_step == 0:
-            # p_opt = Process(target = self.mapp.optimize())
-            # p_opt.start()
-            # p_opt.join()
             err = self.mapp.optimize() #verbose=True)
             print("Optimize: %f units of error" % err)
 
@@ -146,7 +141,7 @@ if __name__ == "__main__":
     H = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
     CNT = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    F = float(os.getenv("F", "525"))
+    F = 225
 
     if W > 1024:
         downscale = 1024.0/W
@@ -156,15 +151,17 @@ if __name__ == "__main__":
     print("using camera %dx%d with F %f" % (W,H,F))
 
     # camera intrinsics
-    K = np.array([[F,0,W//2],[0,F,H//2],[0,0,1]])
-    Kinv = np.linalg.inv(K)
+    K = np.array([[F, 0, W//2],[0, F, H//2],[0, 0, 1]])
+    # Kinv = np.linalg.inv(K)
 
     cap.set(cv2.CAP_PROP_POS_FRAMES, 2450)
     # cap.set(cv2.CAP_PROP_POS_FRAMES, 3000)
-    slam = SLAM(W, H, K, algorithm = 'AKAZE', frame_step=1)
-    cv2.namedWindow('SLAM', cv2.WINDOW_GUI_EXPANDED | cv2.WINDOW_AUTOSIZE)
+    cv2.namedWindow('SLAM', cv2.WINDOW_GUI_NORMAL | cv2.WINDOW_AUTOSIZE)
+    # cv2.namedWindow('SLAM', cv2.WINDOW_GUI_EXPANDED | cv2.WINDOW_AUTOSIZE)
+    slam = SLAM(W, H, K, algorithm = 'AKAZE', frame_step=4)
 
     frame_step = 0
+    frame_scale = 0.75
     while cap.isOpened():
         ret, frame = cap.read()
         frame_counter = cap.get(cv2.CAP_PROP_POS_FRAMES)
@@ -188,7 +185,7 @@ if __name__ == "__main__":
 
         # 2D display
         img = slam.mapp.frames[-1].annotate(frame)
-        img = cv2.resize(img, (int(W*0.75), int(H*0.75)))
+        img = cv2.resize(img, (int(W*frame_scale), int(H*frame_scale)))
         cv2.imshow('SLAM', img)
 
-cv2.destroyAllWindows()
+    cv2.destroyAllWindows()

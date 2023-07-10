@@ -74,7 +74,7 @@ def fundamentalToRt(F):
     return np.linalg.inv(poseRt(R, t))
 
 def normalize(Kinv, pts):
-    return np.dot(Kinv, add_ones(pts).T).T[:, 0:2]
+    return (Kinv @ add_ones(pts).T).T[:, 0:2]
 
 # from https://github.com/scikit-image/scikit-image/blob/master/skimage/transform/_geometric.py
 class EssentialMatrixTransform(object):
