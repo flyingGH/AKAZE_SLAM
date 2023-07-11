@@ -1,4 +1,3 @@
-# Display3D
 from multiprocessing import Process, Queue
 import pangolin
 import OpenGL.GL as gl

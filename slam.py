@@ -61,17 +61,22 @@ class SLAM(object):
                                  (projs[:, 1] > 0) & (projs[:, 1] < self.H)
 
             for i, p in enumerate(self.mapp.points):
-                if not good_pts[i] or f1 in p.frames:
+                if not good_pts[i]:
                     # point not visible in frame
+                    continue
+                if f1 in p.frames:
                     # we already matched this map point to this frame
                     # TODO: understand this better
                     continue
                 for m_idx in f1.kd.query_ball_point(projs[i], 2):
                     # if point unmatched
-                    if f1.pts[m_idx] is None and p.orb_distance(f1.des[m_idx]) < 64.0:
-                        p.add_observation(f1, m_idx)
-                        sbp_pts_count += 1
-                        break
+                    if f1.pts[m_idx] is None:
+                        b_dist = p.orb_distance(f1.des[m_idx])
+                        # if any descriptors within 64
+                        if b_dist < 64.0:
+                            p.add_observation(f1, m_idx)
+                            sbp_pts_count += 1
+                            break
 
         # triangulate the points we don't have matches for
         good_pts4d = np.array([f1.pts[i] is None for i in idx1])
@@ -87,6 +92,16 @@ class SLAM(object):
             if not good_pts4d[i]:
                 continue
 
+            # check parallax is large enough
+            # TODO: learn what parallax means
+            """
+            r1 = np.dot(f1.pose[:3, :3], add_ones(f1.kps[idx1[i]]))
+            r2 = np.dot(f2.pose[:3, :3], add_ones(f2.kps[idx2[i]]))
+            parallax = r1.dot(r2) / (np.linalg.norm(r1) * np.linalg.norm(r2))
+            if parallax >= 0.9998:
+                continue
+            """
+
             # check points are in front of both cameras
             pl1 = f1.pose @ p
             pl2 = f2.pose @ p
@@ -100,7 +115,8 @@ class SLAM(object):
             # check reprojection error
             pp1 = (pp1[0:2] / pp1[2]) - f1.key_pts[idx1[i]]
             pp2 = (pp2[0:2] / pp2[2]) - f2.key_pts[idx2[i]]
-            pp1, pp2 = (np.sum(pp1**2), np.sum(pp2**2))
+            pp1 = np.sum(pp1**2)
+            pp2 = np.sum(pp2**2)
             if pp1 > 2 or pp2 > 2:
                 continue
 
@@ -128,6 +144,7 @@ class SLAM(object):
 
 
 if __name__ == "__main__":
+    version = '0.0.1'
     if len(sys.argv) < 2:
         print("%s <video.mp4>" % sys.argv[0])
         exit(-1)
@@ -141,7 +158,7 @@ if __name__ == "__main__":
     H = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
     CNT = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    F = 225
+    F = 525
 
     if W > 1024:
         downscale = 1024.0/W
@@ -151,28 +168,24 @@ if __name__ == "__main__":
     print("using camera %dx%d with F %f" % (W,H,F))
 
     # camera intrinsics
-    K = np.array([[F, 0, W//2],[0, F, H//2],[0, 0, 1]])
-    # Kinv = np.linalg.inv(K)
+    K = np.array([[F,0,W//2],[0,F,H//2],[0,0,1]])
+    Kinv = np.linalg.inv(K)
 
-    cap.set(cv2.CAP_PROP_POS_FRAMES, 2450)
-    # cap.set(cv2.CAP_PROP_POS_FRAMES, 3000)
-    cv2.namedWindow('SLAM', cv2.WINDOW_GUI_NORMAL | cv2.WINDOW_AUTOSIZE)
-    # cv2.namedWindow('SLAM', cv2.WINDOW_GUI_EXPANDED | cv2.WINDOW_AUTOSIZE)
-    slam = SLAM(W, H, K, algorithm = 'AKAZE', frame_step=4)
-
-    frame_step = 0
+    # cap.set(cv2.CAP_PROP_POS_FRAMES, 230)
+    cap.set(cv2.CAP_PROP_POS_FRAMES, 32930)
+    slam = SLAM(W, H, K, algorithm = 'AKAZE', frame_step=1)
+    
     frame_scale = 0.75
+    cv2.namedWindow('SLAM', cv2.WINDOW_GUI_NORMAL | cv2.WINDOW_AUTOSIZE)
     while cap.isOpened():
         ret, frame = cap.read()
-        frame_counter = cap.get(cv2.CAP_PROP_POS_FRAMES)
-        if frame_step < 4:
-            frame_step +=1
-            continue
-        frame_step = 0
+        frame_counter = int(cap.get(cv2.CAP_PROP_POS_FRAMES))
         frame = saturation(cv2.resize(frame, (W, H)), 1.2)
         print('\n*** frame {}/{} ***'.format(frame_counter, CNT))
-
-        slam.process_frame(frame)
+        if ret == True:
+            slam.process_frame(frame)
+        else:
+            break
 
         key = cv2.waitKey(1)
         if key == ord('q') or key == 27:
@@ -185,7 +198,7 @@ if __name__ == "__main__":
 
         # 2D display
         img = slam.mapp.frames[-1].annotate(frame)
-        img = cv2.resize(img, (int(W*frame_scale), int(H*frame_scale)))
+        img = cv2.resize(img, (int(W * frame_scale), int(H * frame_scale)))
         cv2.imshow('SLAM', img)
 
-    cv2.destroyAllWindows()
+cv2.destroyAllWindows()

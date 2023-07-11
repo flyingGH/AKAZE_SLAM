@@ -1,14 +1,15 @@
-# Point Map
-
 from helpers import poseRt, hamming_distance, add_ones
 from constants import CULLING_ERR_THRES
+from frame import Frame
 import time
 import numpy as np
 # np.finfo(np.dtype("float32"))
 # np.finfo(np.dtype("float64"))
 import g2o
+import json
 
 from optimize_g2o import optimize
+#from optimize_crappy import optimize
 
 LOCAL_WINDOW = 20
 #LOCAL_WINDOW = None
@@ -73,6 +74,7 @@ class Map(object):
         for p in self.points:
             # <= 4 match point that's old
             old_point = len(p.frames) <= 4 and p.frames[-1].id+7 < self.max_frame
+
             # compute reprojection error
             errs = []
             for f, idx in zip(p.frames, p.idxs):
