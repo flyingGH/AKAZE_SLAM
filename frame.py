@@ -1,6 +1,7 @@
 import os
 import cv2
 import numpy as np
+from functools import reduce
 # np.finfo(np.dtype("float32"))
 # np.finfo(np.dtype("float64"))
 from scipy.spatial import cKDTree
@@ -71,6 +72,7 @@ def show_attributes(frame, attribut):
 
 feature_mapping = {'ORB':featureMappingORB, 'AKAZE':featureMappingAKAZE}
 
+
 class Frame(object):
     def __init__(self, mapp, img, K, pose=np.eye(4), tid=None, verts=None, algorithm='ORB'):
         self.K = np.array(K)
@@ -81,15 +83,23 @@ class Frame(object):
         self.key_pts, self.des = feature_mapping[algorithm](img)
         self.pts = [None]*len(self.key_pts)
         self.id = tid if tid is not None else mapp.add_frame(self)
+        self.image = None
+
+    def draw_points(self, tmp, pt2):
+        # Method for drawing points
+        cv2.circle(self.image, (np.int32(pt2[0]), np.int32(pt2[1])), 6, (0, 255, 0))
+        cv2.drawMarker(self.image, (np.int32(pt2[0]), np.int32(pt2[1])), (0, 255, 255), 1, 8, 1, 8)
 
     def annotate(self, img):
-        # paint annotations on the image
-        for pt in self.key_pts:
-            u1, v1 = np.int32(pt[0]), np.int32(pt[1])
-            cv2.circle(img, (u1, v1), color=(0, 255, 0), radius=6)
-            cv2.drawMarker(img, (u1, v1), (0, 255, 255), 1, 8, 1, 8)
-        show_attributes(img, self.algorithm)
-        return img
+        # paint annotations on the image, use reduce() technique
+        # for pt in self.key_pts:
+        #     u1, v1 = np.int32(pt[0]), np.int32(pt[1])
+        #     cv2.circle(img, (u1, v1), color=(0, 255, 0), radius=6)
+        #     cv2.drawMarker(img, (u1, v1), (0, 255, 255), 1, 8, 1, 8)
+        self.image = img
+        reduce(self.draw_points, [pt1 for pt1 in self.key_pts])
+        show_attributes(self.image, self.algorithm)
+        return self.image
 
     # inverse of intrinsics matrix
     @property

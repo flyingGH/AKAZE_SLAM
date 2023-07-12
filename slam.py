@@ -171,8 +171,9 @@ if __name__ == "__main__":
     K = np.array([[F,0,W//2],[0,F,H//2],[0,0,1]])
     Kinv = np.linalg.inv(K)
 
-    # cap.set(cv2.CAP_PROP_POS_FRAMES, 230)
-    cap.set(cv2.CAP_PROP_POS_FRAMES, 32930)
+    # cap.set(cv2.CAP_PROP_POS_FRAMES, 12000)
+    # cap.set(cv2.CAP_PROP_POS_FRAMES, 32930)
+    cap.set(cv2.CAP_PROP_POS_FRAMES, 23500)
     slam = SLAM(W, H, K, algorithm = 'AKAZE', frame_step=1)
     
     frame_scale = 0.75
